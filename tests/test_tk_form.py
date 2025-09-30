@@ -116,3 +116,16 @@ def test_required_field_dataclass_raises_schema_error(root: tk.Tk):
 
     with pytest.raises(SchemaError):
         Form(root, NeedsArg)
+
+
+def test_invalid_field_toggles_invalid_style(root: tk.Tk):
+    form = Form(root, Settings, theme="light")
+    workers = form._root.children["workers"]
+    workers.set_value("999")  # 範囲外
+    with pytest.raises(FormValidationError):
+        form.get()
+    assert "Invalid" in workers.control.cget("style")
+    # 直せば不正スタイルが外れる。
+    workers.set_value("8")
+    form.get()
+    assert "Invalid" not in workers.control.cget("style")
