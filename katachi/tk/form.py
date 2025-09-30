@@ -6,20 +6,21 @@ import dataclasses
 import tkinter as tk
 from collections.abc import Callable
 from tkinter import filedialog, ttk
-from typing import Any
+from typing import Any, Literal
 
 from ..errors import FieldError, FormValidationError
 from ..schema import FieldSpec, introspect
 from ..validation import coerce_field, display_choice
+from . import theme as theme_mod
 
-ERROR_COLOR = "#b00020"
-HELP_COLOR = "#6e7681"
+ThemeOption = Literal["auto", "light", "dark"] | None
 
 
 class Form(ttk.Frame):
     """dataclassの型またはインスタンスからフォームを生成するウィジェット。
 
     getで現在の入力を検証つきで取り出し、setでインスタンスを流し込む。
+    themeは "auto"(OS追従・既定)/"light"/"dark"/None(スタイルに触れない)。
     """
 
     def __init__(
@@ -28,17 +29,20 @@ class Form(ttk.Frame):
         model: type | Any,
         *,
         on_change: Callable[[], None] | None = None,
+        theme: ThemeOption = "auto",
     ) -> None:
-        super().__init__(master, padding=12)
-        if isinstance(model, type):
-            cls = model
-            initial = model()
-        else:
-            cls = type(model)
-            initial = model
+        super().__init__(master, padding=theme_mod.SPACE_LG)
+        cls = model if isinstance(model, type) else type(model)
+        # 先にイントロスペクトしておくと、必須フィールド(デフォルト無し)の
+        # dataclassでも cls() の生な TypeError ではなく SchemaError で弾ける。
+        self._spec = introspect(cls)
+        initial = model() if isinstance(model, type) else model
+        if theme is not None:
+            mode = None if theme == "auto" else theme
+            theme_mod.apply_theme(self, mode)
+        self.palette = theme_mod.current_palette(self)
         self._on_change = on_change
         self._suspend_notify = True
-        self._spec = introspect(cls)
         self._root = _GroupWidget(self, self._spec, self, is_root=True)
         self.set(initial)
         self._suspend_notify = False
@@ -71,18 +75,19 @@ class _FieldWidget:
         self.form = form
         self.spec = spec
         self.rows = 2
-        label = ttk.Label(parent, text=spec.label)
-        label.grid(row=row, column=0, sticky="nw", padx=(0, 12), pady=(6, 0))
+        gap = theme_mod.SPACE_SM
+        label = ttk.Label(parent, text=spec.label, style="Field.TLabel")
+        label.grid(row=row, column=0, sticky="nw", padx=(0, theme_mod.SPACE_MD), pady=(gap, 0))
         self.control = self._build_control(parent)
-        self.control.grid(row=row, column=1, sticky="ew", pady=(6, 0))
+        self.control.grid(row=row, column=1, sticky="ew", pady=(gap, 0))
         next_row = row + 1
         if spec.help:
-            help_label = ttk.Label(parent, text=spec.help, foreground=HELP_COLOR)
-            help_label.grid(row=next_row, column=1, sticky="w")
+            help_label = ttk.Label(parent, text=spec.help, style="Help.TLabel")
+            help_label.grid(row=next_row, column=1, sticky="w", pady=(theme_mod.SPACE_XS, 0))
             next_row += 1
             self.rows += 1
-        self.error_label = ttk.Label(parent, text="", foreground=ERROR_COLOR)
-        self.error_label.grid(row=next_row, column=1, sticky="w")
+        self.error_label = ttk.Label(parent, text="", style="Error.TLabel")
+        self.error_label.grid(row=next_row, column=1, sticky="w", pady=(theme_mod.SPACE_XS, 0))
         self.error_label.grid_remove()
 
     def _build_control(self, parent: ttk.Frame) -> tk.Widget:
@@ -170,6 +175,8 @@ class _MultilineWidget(_FieldWidget):
     def _build_control(self, parent: ttk.Frame) -> tk.Widget:
         assert self.spec.multiline is not None
         self.text = tk.Text(parent, height=self.spec.multiline.height, width=40)
+        if self.form.palette is not None:
+            theme_mod.style_text(self.text, self.form.palette)
         self.text.bind("<KeyRelease>", lambda _e: self.form.notify())
         return self.text
 
@@ -210,16 +217,18 @@ class _PathWidget(_FieldWidget):
 class _StrListWidget(_FieldWidget):
     def _build_control(self, parent: ttk.Frame) -> tk.Widget:
         frame = ttk.Frame(parent)
-        self.listbox = tk.Listbox(frame, height=4)
+        self.listbox = tk.Listbox(frame, height=4, activestyle="none")
+        if self.form.palette is not None:
+            theme_mod.style_text(self.listbox, self.form.palette)
         self.listbox.grid(row=0, column=0, columnspan=3, sticky="ew")
         self.entry_var = tk.StringVar(parent)
         entry = ttk.Entry(frame, textvariable=self.entry_var)
-        entry.grid(row=1, column=0, sticky="ew", pady=(4, 0))
+        entry.grid(row=1, column=0, sticky="ew", pady=(theme_mod.SPACE_XS, 0))
         entry.bind("<Return>", lambda _e: self._add())
         add = ttk.Button(frame, text="追加", command=self._add, width=6)
-        add.grid(row=1, column=1, padx=(6, 0), pady=(4, 0))
+        add.grid(row=1, column=1, padx=(theme_mod.SPACE_SM, 0), pady=(theme_mod.SPACE_XS, 0))
         remove = ttk.Button(frame, text="削除", command=self._remove, width=6)
-        remove.grid(row=1, column=2, padx=(6, 0), pady=(4, 0))
+        remove.grid(row=1, column=2, padx=(theme_mod.SPACE_SM, 0), pady=(theme_mod.SPACE_XS, 0))
         frame.columnconfigure(0, weight=1)
         return frame
 
@@ -271,14 +280,16 @@ class _GroupWidget:
         if is_root:
             container: ttk.Frame = parent
         else:
-            container = ttk.LabelFrame(parent, text=spec.label, padding=8)
+            container = ttk.LabelFrame(parent, text=spec.label, padding=theme_mod.SPACE_MD)
         self.container = container
         container.columnconfigure(1, weight=1)
         row = 0
         for child in spec.children:
             if child.kind == "group":
                 group = _GroupWidget(form, child, container)
-                group.container.grid(row=row, column=0, columnspan=2, sticky="ew", pady=(8, 0))
+                group.container.grid(
+                    row=row, column=0, columnspan=2, sticky="ew", pady=(theme_mod.SPACE_MD, 0)
+                )
                 self.children[child.name] = group
                 row += 1
             else:
