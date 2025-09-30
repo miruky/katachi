@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -75,6 +76,18 @@ def _coerce_path(_spec: FieldSpec, raw: Any) -> Path:
     return Path(text)
 
 
+def _coerce_date(_spec: FieldSpec, raw: Any) -> datetime.date:
+    if isinstance(raw, datetime.date):
+        return raw
+    text = str(raw).strip()
+    if not text:
+        raise ValueError("日付を入力してください")
+    try:
+        return datetime.date.fromisoformat(text)
+    except ValueError:
+        raise ValueError("YYYY-MM-DD 形式で入力してください") from None
+
+
 def _coerce_str_list(_spec: FieldSpec, raw: Any) -> list[str]:
     if not isinstance(raw, list | tuple):
         raise ValueError("文字列のリストを指定してください")
@@ -88,5 +101,6 @@ _HANDLERS = {
     "text": _coerce_text,
     "choice": _coerce_choice,
     "path": _coerce_path,
+    "date": _coerce_date,
     "str_list": _coerce_str_list,
 }
