@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import datetime
 import tkinter as tk
 from collections.abc import Callable
 from tkinter import filedialog, ttk
@@ -39,6 +40,7 @@ class Form(ttk.Frame):
         # 先にイントロスペクトしておくと、必須フィールド(デフォルト無し)の
         # dataclassでも cls() の生な TypeError ではなく SchemaError で弾ける。
         self._spec = introspect(cls)
+        self._default_factory = cls
         initial = model() if isinstance(model, type) else model
         if theme is not None:
             mode = None if theme == "auto" else theme
@@ -66,6 +68,12 @@ class Form(ttk.Frame):
             self._root.set(instance)
         finally:
             self._suspend_notify = False
+
+    def reset(self) -> None:
+        """全フィールドをdataclassのデフォルト値へ戻し、エラー表示も消す。"""
+        self.set(self._default_factory())
+        self._root.clear_errors()
+        self.notify()
 
     def notify(self) -> None:
         if not self._suspend_notify and self._on_change is not None:
@@ -187,7 +195,36 @@ class _ChoiceWidget(_FieldWidget):
 class _TextWidget(_FieldWidget):
     def _build_control(self, parent: ttk.Frame) -> tk.Widget:
         self.var = self._traced_var(tk.StringVar(parent))
-        entry = ttk.Entry(parent, textvariable=self.var, show="*" if self.spec.secret else "")
+        if not self.spec.secret:
+            entry = ttk.Entry(parent, textvariable=self.var)
+            self.invalid_target, self.invalid_style = entry, "TEntry"
+            return entry
+        # 伏せ字フィールドには表示/非表示を切り替えるボタンを添える。
+        frame = ttk.Frame(parent)
+        self.entry = ttk.Entry(frame, textvariable=self.var, show="*")
+        self.entry.pack(side="left", fill="x", expand=True)
+        self._revealed = False
+        self.reveal = ttk.Button(frame, text="表示", width=6, command=self._toggle_reveal)
+        self.reveal.pack(side="left", padx=(theme_mod.SPACE_SM, 0))
+        self.invalid_target, self.invalid_style = self.entry, "TEntry"
+        return frame
+
+    def _toggle_reveal(self) -> None:
+        self._revealed = not self._revealed
+        self.entry.configure(show="" if self._revealed else "*")
+        self.reveal.configure(text="隠す" if self._revealed else "表示")
+
+    def raw(self) -> str:
+        return self.var.get()
+
+    def set_value(self, value: Any) -> None:
+        self.var.set(str(value))
+
+
+class _DateWidget(_FieldWidget):
+    def _build_control(self, parent: ttk.Frame) -> tk.Widget:
+        self.var = self._traced_var(tk.StringVar(parent))
+        entry = ttk.Entry(parent, textvariable=self.var, width=16)
         self.invalid_target, self.invalid_style = entry, "TEntry"
         return entry
 
@@ -195,7 +232,10 @@ class _TextWidget(_FieldWidget):
         return self.var.get()
 
     def set_value(self, value: Any) -> None:
-        self.var.set(str(value))
+        if isinstance(value, datetime.date):
+            self.var.set(value.isoformat())
+        else:
+            self.var.set(str(value))
 
 
 class _MultilineWidget(_FieldWidget):
@@ -289,6 +329,7 @@ _WIDGETS: dict[str, type[_FieldWidget]] = {
     "float": _NumberWidget,
     "choice": _ChoiceWidget,
     "path": _PathWidget,
+    "date": _DateWidget,
     "str_list": _StrListWidget,
 }
 
@@ -358,3 +399,10 @@ class _GroupWidget:
                 child.set(value)
             else:
                 child.set_value(value)
+
+    def clear_errors(self) -> None:
+        for child in self.children.values():
+            if isinstance(child, _GroupWidget):
+                child.clear_errors()
+            else:
+                child.show_error(None)
