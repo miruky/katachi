@@ -3,6 +3,7 @@
 実行: python examples/settings_demo.py
 """
 
+import datetime
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -33,6 +34,9 @@ class AppSettings:
     log_level: Annotated[LogLevel, Label("ログレベル")] = LogLevel.INFO
     workers: Annotated[int, Range(1, 32), Label("ワーカー数"), Help("並列処理の上限")] = 4
     data_dir: Annotated[Path, DirPath(), Label("データ保存先")] = Path("~/app-data")
+    valid_until: Annotated[datetime.date, Label("有効期限"), Help("YYYY-MM-DD")] = datetime.date(
+        2027, 3, 31
+    )
     exclude: Annotated[list[str], Label("除外パターン")] = field(default_factory=list)
     note: Annotated[str, Multiline(height=4), Label("メモ")] = ""
     network: Annotated[NetworkSettings, Label("ネットワーク")] = field(
