@@ -211,6 +211,8 @@ def apply_theme(widget: tk.Misc, mode: Mode | None = None) -> Palette:
             background=palette.surface,
             foreground=palette.text,
             bordercolor=palette.border,
+            lightcolor=palette.border,
+            darkcolor=palette.border,
             insertcolor=palette.text,
             arrowcolor=palette.text,
             relief="flat",
@@ -219,6 +221,29 @@ def apply_theme(widget: tk.Misc, mode: Mode | None = None) -> Palette:
         style.map(
             entryish,
             bordercolor=[("focus", palette.focus)],
+            lightcolor=[("focus", palette.focus)],
+            darkcolor=[("focus", palette.focus)],
+            fieldbackground=[("readonly", palette.field)],
+        )
+        # 不正入力のフィールドは枠を赤くする。色だけに頼らずエラー文言も併記する。
+        invalid = f"Invalid.{entryish}"
+        style.configure(
+            invalid,
+            fieldbackground=palette.field,
+            foreground=palette.text,
+            bordercolor=palette.error,
+            lightcolor=palette.error,
+            darkcolor=palette.error,
+            insertcolor=palette.text,
+            arrowcolor=palette.text,
+            relief="flat",
+            padding=SPACE_XS,
+        )
+        style.map(
+            invalid,
+            bordercolor=[("focus", palette.error)],
+            lightcolor=[("focus", palette.error)],
+            darkcolor=[("focus", palette.error)],
             fieldbackground=[("readonly", palette.field)],
         )
 
