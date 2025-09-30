@@ -128,3 +128,14 @@ def test_choices_on_wrong_type_is_rejected():
 
     with pytest.raises(SchemaError):
         introspect(Wrong)
+
+
+def test_date_maps_to_date_kind():
+    import datetime
+
+    @dataclass
+    class WithDate:
+        start: datetime.date = datetime.date(2026, 1, 1)
+
+    spec = next(s for s in introspect(WithDate).children if s.name == "start")
+    assert spec.kind == "date"
