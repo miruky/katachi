@@ -69,12 +69,16 @@ def edit[T](
     ttk.Separator(window, orient="horizontal").pack(fill="x", padx=theme_mod.SPACE_LG)
     buttons = ttk.Frame(window, padding=(theme_mod.SPACE_LG, theme_mod.SPACE_MD))
     buttons.pack(fill="x")
+    ttk.Button(buttons, text="デフォルトに戻す", command=form.reset).pack(side="left")
     ttk.Button(buttons, text="キャンセル", command=on_cancel).pack(side="right")
     ttk.Button(buttons, text="保存", command=on_save, style="Accent.TButton").pack(
         side="right", padx=(0, theme_mod.SPACE_SM)
     )
     window.protocol("WM_DELETE_WINDOW", on_cancel)
     window.bind("<Escape>", lambda _e: on_cancel())
+    # 保存のショートカット。Commandはmac、Controlはそれ以外で効く。
+    window.bind("<Control-s>", lambda _e: on_save())
+    window.bind("<Command-s>", lambda _e: on_save())
 
     motion_mod.fade_in(window, enabled=form.motion)
     if owns_root:
