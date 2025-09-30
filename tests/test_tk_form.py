@@ -12,7 +12,7 @@ import pytest
 
 tk = pytest.importorskip("tkinter", reason="tkinterなしのビルドではスキップ")
 
-from katachi import FormValidationError, Range  # noqa: E402
+from katachi import FormValidationError, Range, SchemaError  # noqa: E402
 from katachi.tk import Form  # noqa: E402
 
 
@@ -92,3 +92,27 @@ def test_on_change_fires(root: tk.Tk):
     assert calls == []
     form._root.children["name"].set_value("changed")
     assert calls != []
+
+
+def test_form_applies_requested_theme(root: tk.Tk):
+    from katachi.tk.theme import DARK
+
+    form = Form(root, Settings, theme="dark")
+    assert form.palette is DARK
+
+
+def test_form_theme_none_leaves_palette_unset(root: tk.Tk):
+    form = Form(root, Settings, theme=None)
+    assert form.palette is None
+    # スタイルに触れなくても入力の往復は壊れない。
+    assert form.get() == Settings()
+
+
+def test_required_field_dataclass_raises_schema_error(root: tk.Tk):
+    @dataclass
+    class NeedsArg:
+        required: int  # デフォルト値が無い
+        name: str = "x"
+
+    with pytest.raises(SchemaError):
+        Form(root, NeedsArg)
