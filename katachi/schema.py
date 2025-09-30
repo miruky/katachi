@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import datetime
 from dataclasses import MISSING, dataclass
 from enum import Enum
 from pathlib import Path
@@ -11,7 +12,7 @@ from typing import Annotated, Any, Literal, get_args, get_origin, get_type_hints
 from .errors import SchemaError
 from .markers import Choices, DirPath, FilePath, Help, Label, Multiline, Range, Secret
 
-Kind = Literal["bool", "int", "float", "text", "choice", "path", "str_list", "group"]
+Kind = Literal["bool", "int", "float", "text", "choice", "path", "date", "str_list", "group"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,6 +112,8 @@ def _field_spec(field: dataclasses.Field[Any], hint: Any) -> FieldSpec:
         return FieldSpec(kind="float", **common)
     if base is str:
         return FieldSpec(kind="text", **common)
+    if base is datetime.date:
+        return FieldSpec(kind="date", **common)
     if base is Path:
         select: Literal["file", "dir"] = "dir" if dir_marker is not None else "file"
         return FieldSpec(
