@@ -8,6 +8,7 @@ from tkinter import ttk
 
 from ..errors import FormValidationError, PersistenceError
 from ..persistence import load, save
+from . import motion as motion_mod
 from . import theme as theme_mod
 from .form import Form, ThemeOption
 
@@ -19,12 +20,14 @@ def edit[T](
     title: str | None = None,
     parent: tk.Misc | None = None,
     theme: ThemeOption = "auto",
+    motion: bool | None = None,
 ) -> T | None:
     """設定ダイアログを開く。保存で確定したインスタンス、キャンセルでNoneを返す。
 
     storeを渡すと初期値をそのファイルから読み、保存時に書き戻す。
     壊れたファイルはデフォルト値として扱い、起動を妨げない。
     themeは "auto"(OS追従・既定)/"light"/"dark"/None(スタイルに触れない)。
+    motionは None で reduced-motion 設定に追従、True/False で明示指定。
     """
     cls: type[T] = model if isinstance(model, type) else type(model)
     if store is not None:
@@ -42,10 +45,13 @@ def edit[T](
     window.title(title or cls.__name__)
     window.minsize(380, 0)
 
-    form = Form(window, initial, theme=theme)
+    form = Form(window, initial, theme=theme, motion=motion)
     form.pack(fill="both", expand=True)
 
     result: list[T | None] = [None]
+
+    def close() -> None:
+        motion_mod.fade_out(window, window.destroy, enabled=form.motion)
 
     def on_save() -> None:
         try:
@@ -55,10 +61,10 @@ def edit[T](
         if store is not None:
             save(value, store)
         result[0] = value
-        window.destroy()
+        close()
 
     def on_cancel() -> None:
-        window.destroy()
+        close()
 
     ttk.Separator(window, orient="horizontal").pack(fill="x", padx=theme_mod.SPACE_LG)
     buttons = ttk.Frame(window, padding=(theme_mod.SPACE_LG, theme_mod.SPACE_MD))
@@ -70,6 +76,7 @@ def edit[T](
     window.protocol("WM_DELETE_WINDOW", on_cancel)
     window.bind("<Escape>", lambda _e: on_cancel())
 
+    motion_mod.fade_in(window, enabled=form.motion)
     if owns_root:
         window.mainloop()
     else:
