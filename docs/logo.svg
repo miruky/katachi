@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="katachiのロゴ">
+  <title>katachi</title>
+  <rect x="8" y="8" width="48" height="48" rx="10" fill="none" stroke="#768390" stroke-width="3.5"/>
+  <path d="M18 22h18M18 32h28M18 42h12" stroke="#768390" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M40 41l4 4 8-9" fill="none" stroke="#2f9e8f" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

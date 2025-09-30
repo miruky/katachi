@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 300" role="img" aria-label="katachiのアーキテクチャ図">
+  <title>katachiのアーキテクチャ</title>
+  <style>
+    .box { fill: none; stroke: #768390; stroke-width: 1.5; }
+    .accent-box { fill: none; stroke: #2f9e8f; stroke-width: 1.5; }
+    .label { font: 600 14px 'Hiragino Sans', 'Noto Sans JP', sans-serif; fill: #768390; }
+    .small { font: 400 11.5px 'Hiragino Sans', 'Noto Sans JP', sans-serif; fill: #768390; }
+    .accent-label { font: 700 14px 'Hiragino Sans', 'Noto Sans JP', sans-serif; fill: #2f9e8f; }
+    .arrow { stroke: #768390; stroke-width: 1.5; fill: none; marker-end: url(#head); }
+    .arrow2 { stroke: #768390; stroke-width: 1.5; fill: none; marker-end: url(#head); marker-start: url(#tail); }
+  </style>
+  <defs>
+    <marker id="head" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0 0L8 4L0 8z" fill="#768390"/>
+    </marker>
+    <marker id="tail" markerWidth="8" markerHeight="8" refX="1" refY="4" orient="auto">
+      <path d="M8 0L0 4L8 8z" fill="#768390"/>
+    </marker>
+  </defs>
+
+  <rect x="20" y="40" width="190" height="92" rx="8" class="box"/>
+  <text x="40" y="70" class="label">dataclass定義</text>
+  <text x="40" y="94" class="small">型ヒント</text>
+  <text x="40" y="112" class="small">Annotatedマーカー</text>
+
+  <rect x="280" y="40" width="190" height="92" rx="8" class="accent-box"/>
+  <text x="300" y="70" class="accent-label">スキーマ層</text>
+  <text x="300" y="94" class="small">introspect()</text>
+  <text x="300" y="112" class="small">FieldSpecの木</text>
+
+  <rect x="540" y="20" width="320" height="130" rx="8" class="box"/>
+  <text x="560" y="50" class="label">GUI層(tkinter / ttk)</text>
+  <text x="560" y="74" class="small">Form: FieldSpecをウィジェットに写像</text>
+  <text x="560" y="92" class="small">edit(): 保存・キャンセル付きダイアログ</text>
+  <text x="560" y="110" class="small">検証エラーの赤字インライン表示</text>
+  <text x="560" y="128" class="small">coerce_field()で生入力を型へ変換</text>
+
+  <rect x="280" y="190" width="190" height="80" rx="8" class="box"/>
+  <text x="300" y="220" class="label">永続化層</text>
+  <text x="300" y="244" class="small">load / save(JSON)</text>
+  <text x="300" y="260" class="small">欠損はデフォルトで補完</text>
+
+  <rect x="540" y="190" width="320" height="80" rx="8" class="box"/>
+  <text x="560" y="220" class="label">検証済みインスタンス</text>
+  <text x="560" y="244" class="small">フォーム確定時に組み立てる</text>
+  <text x="560" y="260" class="small">ヘッドレス環境でも同じAPIで利用可</text>
+
+  <path class="arrow" d="M210 86 H272"/>
+  <path class="arrow" d="M470 86 H532"/>
+  <path class="arrow" d="M700 150 V182"/>
+  <path class="arrow2" d="M478 230 H532"/>
+</svg>
