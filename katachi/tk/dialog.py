@@ -8,7 +8,8 @@ from tkinter import ttk
 
 from ..errors import FormValidationError, PersistenceError
 from ..persistence import load, save
-from .form import Form
+from . import theme as theme_mod
+from .form import Form, ThemeOption
 
 
 def edit[T](
@@ -17,11 +18,13 @@ def edit[T](
     store: str | Path | None = None,
     title: str | None = None,
     parent: tk.Misc | None = None,
+    theme: ThemeOption = "auto",
 ) -> T | None:
     """設定ダイアログを開く。保存で確定したインスタンス、キャンセルでNoneを返す。
 
     storeを渡すと初期値をそのファイルから読み、保存時に書き戻す。
     壊れたファイルはデフォルト値として扱い、起動を妨げない。
+    themeは "auto"(OS追従・既定)/"light"/"dark"/None(スタイルに触れない)。
     """
     cls: type[T] = model if isinstance(model, type) else type(model)
     if store is not None:
@@ -39,7 +42,7 @@ def edit[T](
     window.title(title or cls.__name__)
     window.minsize(380, 0)
 
-    form = Form(window, initial)
+    form = Form(window, initial, theme=theme)
     form.pack(fill="both", expand=True)
 
     result: list[T | None] = [None]
@@ -57,10 +60,13 @@ def edit[T](
     def on_cancel() -> None:
         window.destroy()
 
-    buttons = ttk.Frame(window, padding=(12, 0, 12, 12))
+    ttk.Separator(window, orient="horizontal").pack(fill="x", padx=theme_mod.SPACE_LG)
+    buttons = ttk.Frame(window, padding=(theme_mod.SPACE_LG, theme_mod.SPACE_MD))
     buttons.pack(fill="x")
     ttk.Button(buttons, text="キャンセル", command=on_cancel).pack(side="right")
-    ttk.Button(buttons, text="保存", command=on_save).pack(side="right", padx=(0, 8))
+    ttk.Button(buttons, text="保存", command=on_save, style="Accent.TButton").pack(
+        side="right", padx=(0, theme_mod.SPACE_SM)
+    )
     window.protocol("WM_DELETE_WINDOW", on_cancel)
     window.bind("<Escape>", lambda _e: on_cancel())
 
