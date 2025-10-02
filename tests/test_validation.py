@@ -99,3 +99,31 @@ def test_coerce_date_rejects_bad_format():
 
     with pytest.raises(ValueError, match="日付"):
         coerce_field(_date_spec(), "   ")
+
+
+def _bounded_date_spec():
+    import datetime
+
+    @dataclass
+    class Booking:
+        day: Annotated[
+            datetime.date, Range(datetime.date(2026, 1, 1), datetime.date(2026, 12, 31))
+        ] = datetime.date(2026, 6, 1)
+
+    return next(s for s in introspect(Booking).children if s.name == "day")
+
+
+def test_coerce_date_accepts_value_within_range():
+    import datetime
+
+    assert coerce_field(_bounded_date_spec(), "2026-06-15") == datetime.date(2026, 6, 15)
+    # 両端は含む。
+    assert coerce_field(_bounded_date_spec(), "2026-01-01") == datetime.date(2026, 1, 1)
+    assert coerce_field(_bounded_date_spec(), "2026-12-31") == datetime.date(2026, 12, 31)
+
+
+def test_coerce_date_rejects_value_out_of_range():
+    with pytest.raises(ValueError, match="2026-01-01以上2026-12-31以下"):
+        coerce_field(_bounded_date_spec(), "2025-12-31")
+    with pytest.raises(ValueError, match="2026-01-01以上2026-12-31以下"):
+        coerce_field(_bounded_date_spec(), "2027-01-01")

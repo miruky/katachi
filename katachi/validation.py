@@ -76,16 +76,26 @@ def _coerce_path(_spec: FieldSpec, raw: Any) -> Path:
     return Path(text)
 
 
-def _coerce_date(_spec: FieldSpec, raw: Any) -> datetime.date:
+def _coerce_date(spec: FieldSpec, raw: Any) -> datetime.date:
     if isinstance(raw, datetime.date):
-        return raw
-    text = str(raw).strip()
-    if not text:
-        raise ValueError("日付を入力してください")
-    try:
-        return datetime.date.fromisoformat(text)
-    except ValueError:
-        raise ValueError("YYYY-MM-DD 形式で入力してください") from None
+        value = raw
+    else:
+        text = str(raw).strip()
+        if not text:
+            raise ValueError("日付を入力してください")
+        try:
+            value = datetime.date.fromisoformat(text)
+        except ValueError:
+            raise ValueError("YYYY-MM-DD 形式で入力してください") from None
+    rng = spec.range
+    if (
+        rng is not None
+        and isinstance(rng.min, datetime.date)
+        and isinstance(rng.max, datetime.date)
+        and not (rng.min <= value <= rng.max)
+    ):
+        raise ValueError(f"{rng.min.isoformat()}以上{rng.max.isoformat()}以下にしてください")
+    return value
 
 
 def _coerce_str_list(_spec: FieldSpec, raw: Any) -> list[str]:
