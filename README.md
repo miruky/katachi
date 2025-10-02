@@ -26,7 +26,7 @@ class Settings:
 settings = katachi.edit(Settings, store="~/.config/myapp/settings.json")
 ```
 
-これだけで、スピンボックスとチェックボックスを持つダイアログが開き、保存ボタンで検証済みの`Settings`インスタンスが返ります。`store`を渡していれば前回の値の読み込みと保存も自動です。
+これだけで、スピンボックスとチェックボックスを持つダイアログが開き、保存ボタンで検証済みの`Settings`インスタンスが返ります。`store`を渡していれば前回の値の読み込みと保存も自動です。ダイアログはOSのライト/ダークに追従し、背の高い設定は自動でスクロールに収まります。
 
 ### なぜ作ったのか
 
@@ -40,7 +40,8 @@ settings = katachi.edit(Settings, store="~/.config/myapp/settings.json")
 |:--|:--|
 | `bool` | チェックボックス |
 | `int` / `float` | スピンボックス(`Range`で範囲指定) |
-| `str` | 1行入力(`Multiline`でテキストエリア、`Secret`で伏せ字) |
+| `str` | 1行入力(`Multiline`でテキストエリア、`Secret`で伏せ字+表示切替) |
+| `datetime.date` | `YYYY-MM-DD`入力(範囲外・不正形式を検証) |
 | `Enum` / `Literal` / `Choices` | ドロップダウン |
 | `Path` | パス入力+参照ボタン(`FilePath` / `DirPath`) |
 | `list[str]` | 追加・削除つきリスト |
@@ -50,7 +51,7 @@ settings = katachi.edit(Settings, store="~/.config/myapp/settings.json")
 
 | マーカー | 役割 |
 |:--|:--|
-| `Range(min, max, step=None)` | 数値の範囲と増分 |
+| `Range(min, max, step=None)` | 数値・`datetime.date`の範囲(stepは数値の増分) |
 | `Choices(*values)` | strとintの選択肢 |
 | `Label(text)` | 表示ラベル(未指定はフィールド名から導出) |
 | `Help(text)` | フィールド下の補足説明 |
@@ -58,6 +59,24 @@ settings = katachi.edit(Settings, store="~/.config/myapp/settings.json")
 | `Secret()` | 伏せ字入力 |
 | `FilePath(patterns=())` | ファイル選択ダイアログ |
 | `DirPath()` | ディレクトリ選択ダイアログ |
+
+### ダイアログの見た目と操作
+
+`edit()`はいくつかの調整を受け付けます。
+
+```python
+katachi.edit(
+    Settings,
+    store="~/.config/myapp/settings.json",
+    title="設定",
+    theme="auto",   # "auto"(OS追従・既定) / "light" / "dark" / None(既存スタイルに触れない)
+    motion=None,    # None で reduced-motion 設定に追従、True/False で明示
+)
+```
+
+ダイアログは8pxグリッドの余白と明確なタイポ階層で組まれ、WCAG AAのコントラストをライト・ダーク両方で満たします。入場と退場はフェードし、不正な入力は枠が赤くなって直すべき欄が分かります。これらの動きは`prefers-reduced-motion`(macOSの「視差効果を減らす」など)や環境変数`KATACHI_REDUCE_MOTION=1`で止まります。
+
+操作面では、`Ctrl`+`S`(macOSは`Cmd`+`S`)で保存、`Esc`でキャンセル、「デフォルトに戻す」で初期値へ復帰します。保存時に検証へ引っかかると、最初の不正フィールドへ自動でフォーカスが移ります。伏せ字フィールドには表示/非表示の切り替えが付きます。
 
 ### フォームを既存ウィンドウに埋め込む
 
@@ -67,8 +86,12 @@ from katachi.tk import Form
 form = Form(parent, Settings, on_change=lambda: print("変更された"))
 form.pack(fill="both", expand=True)
 
-instance = form.get()   # 不正入力ならFormValidationError、各欄に赤字でも表示
-form.set(instance)      # インスタンスを流し込む
+instance = form.get()        # 不正入力ならFormValidationError、各欄に赤字でも表示
+form.set(instance)           # インスタンスを流し込む
+form.reset()                 # dataclassのデフォルト値へ戻す
+if form.is_valid():          # 表示を変えずに妥当性だけ確認(on_changeと相性が良い)
+    ...
+form.focus_invalid()         # 最初の不正フィールドへフォーカス
 ```
 
 ### GUIなしで使う
@@ -110,7 +133,12 @@ save(settings, "~/.config/myapp/settings.json")
 - `katachi/markers.py` — `Range`や`Help`などのAnnotatedメタデータ
 - `katachi/validation.py` — 生入力の型変換と検証
 - `katachi/persistence.py` — JSONとの相互変換、load / save
-- `katachi/tk/` — tkinterバックエンド(Form、editダイアログ)
+- `katachi/tk/` — tkinterバックエンド
+  - `form.py` — FieldSpecの木からウィジェットを組むForm
+  - `dialog.py` — 1関数で完結するeditダイアログ
+  - `theme.py` — ライト/ダークのパレットとttkスタイル(OSモード検出)
+  - `motion.py` — フェード演出とreduced-motion判定
+  - `scroll.py` — 背の高いフォームを収める縦スクロール領域
 - `tests/` — ヘッドレステストと実ウィジェットの往復テスト
 - `examples/settings_demo.py` — 一通りの機能を使うデモ
 
@@ -153,10 +181,12 @@ make lint
 - **後方互換な設定ファイル** — 知らないキーは無視、欠損キーはデフォルト値。フィールドの増減でファイルが壊れない
 - **Enumはnameで保存** — valueは型が揺れるため、一意で必ず文字列になるnameをJSONに書く
 - **デフォルト値の強制** — 全フィールドにデフォルトを要求し、「ファイルがなくても起動する」ことを型レベルで保証する
+- **動きは意味のある範囲で、止められる** — フェードや不正欄の強調は操作の手応えのためだけに使い、`prefers-reduced-motion`で完全に無効化できる
+- **既定で整った見た目** — テーマを書かなくても8pxグリッドの余白とWCAG AAのコントラストが付き、ライト・ダークに追従する
 
 ## 制約
 
-`Optional`型、`dict`、ネストしたリスト、日付型には現バージョンでは対応していません。また、テーマのカスタマイズはttkの既定スタイルに従います。これらはロードマップとして扱います。
+`Optional`型、`dict`、ネストしたリスト、`datetime`(時刻つき)には現バージョンでは対応していません(日付のみの`datetime.date`は対応)。配色はライト・ダークの組み込みパレットに従い、任意配色のテーマ差し替えは今後の課題です。
 
 ## ライセンス
 
