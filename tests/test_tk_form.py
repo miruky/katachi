@@ -13,8 +13,9 @@ import pytest
 tk = pytest.importorskip("tkinter", reason="tkinterなしのビルドではスキップ")
 
 import datetime  # noqa: E402
+from tkinter import ttk  # noqa: E402
 
-from katachi import FormValidationError, Range, SchemaError, Secret  # noqa: E402
+from katachi import FormValidationError, Help, Range, SchemaError, Secret  # noqa: E402
 from katachi.tk import Form  # noqa: E402
 
 
@@ -231,6 +232,38 @@ def test_str_list_delete_key_removes_selection(root: tk.Tk):
     tags.listbox.selection_set(1)
     assert tags._on_delete_key(None) == "break"  # 既定操作を止める
     assert tags.raw() == ["a", "c"]
+
+
+def test_group_help_is_rendered_inside_frame(root: tk.Tk):
+    @dataclass
+    class Inner:
+        x: int = 1
+
+    @dataclass
+    class Outer:
+        inner: Annotated[Inner, Help("接続に関する設定")] = field(default_factory=Inner)
+
+    form = Form(root, Outer, theme=None)
+    group = form._root.children["inner"]
+    texts = [w.cget("text") for w in group.container.winfo_children() if isinstance(w, ttk.Label)]
+    assert "接続に関する設定" in texts
+
+
+def test_group_without_help_has_no_intro_label(root: tk.Tk):
+    @dataclass
+    class Inner:
+        x: int = 1
+
+    @dataclass
+    class Outer:
+        inner: Inner = field(default_factory=Inner)
+
+    form = Form(root, Outer, theme=None)
+    group = form._root.children["inner"]
+    # Help を付けていないグループには説明ラベルを足さない(行ずれの確認も兼ねる)。
+    labels = [w for w in group.container.winfo_children() if isinstance(w, ttk.Label)]
+    assert all(w.cget("style") != "Help.TLabel" for w in labels)
+    assert form.get() == Outer()
 
 
 def test_date_range_rejects_out_of_bounds(root: tk.Tk):
