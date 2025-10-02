@@ -12,7 +12,9 @@ import pytest
 
 tk = pytest.importorskip("tkinter", reason="tkinterなしのビルドではスキップ")
 
-from katachi import FormValidationError, Range, SchemaError  # noqa: E402
+import datetime  # noqa: E402
+
+from katachi import FormValidationError, Range, SchemaError, Secret  # noqa: E402
 from katachi.tk import Form  # noqa: E402
 
 
@@ -129,3 +131,53 @@ def test_invalid_field_toggles_invalid_style(root: tk.Tk):
     workers.set_value("8")
     form.get()
     assert "Invalid" not in workers.control.cget("style")
+
+
+def test_reset_restores_defaults_and_clears_errors(root: tk.Tk):
+    form = Form(root, Settings, theme="light")
+    form.set(Settings(workers=16, name="renamed"))
+    workers = form._root.children["workers"]
+    workers.set_value("999")
+    with pytest.raises(FormValidationError):
+        form.get()
+    assert "Invalid" in workers.control.cget("style")
+    form.reset()
+    assert form.get() == Settings()
+    assert "Invalid" not in workers.control.cget("style")
+
+
+def test_date_field_round_trips(root: tk.Tk):
+    @dataclass
+    class HasDate:
+        start: datetime.date = datetime.date(2026, 1, 1)
+        name: str = "x"
+
+    form = Form(root, HasDate, theme=None)
+    form.set(HasDate(start=datetime.date(2030, 12, 31)))
+    assert form.get() == HasDate(start=datetime.date(2030, 12, 31))
+
+
+def test_invalid_date_reports_field_error(root: tk.Tk):
+    @dataclass
+    class HasDate:
+        start: datetime.date = datetime.date(2026, 1, 1)
+
+    form = Form(root, HasDate, theme=None)
+    form._root.children["start"].set_value("2030/12/31")
+    with pytest.raises(FormValidationError) as excinfo:
+        form.get()
+    assert any(e.path == "start" for e in excinfo.value.errors)
+
+
+def test_secret_reveal_toggle(root: tk.Tk):
+    @dataclass
+    class HasSecret:
+        token: Annotated[str, Secret()] = ""
+
+    form = Form(root, HasSecret, theme=None)
+    widget = form._root.children["token"]
+    assert widget.entry.cget("show") == "*"
+    widget._toggle_reveal()
+    assert widget.entry.cget("show") == ""
+    widget._toggle_reveal()
+    assert widget.entry.cget("show") == "*"
