@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import tkinter as tk
 from pathlib import Path
-from tkinter import ttk
+from tkinter import messagebox, ttk
 
 from ..errors import FormValidationError, PersistenceError
 from ..persistence import load, save
 from . import motion as motion_mod
 from . import theme as theme_mod
 from .form import Form, ThemeOption
+from .scroll import ScrollableFrame
 
 
 def edit[T](
@@ -45,8 +46,15 @@ def edit[T](
     window.title(title or cls.__name__)
     window.minsize(380, 0)
 
-    form = Form(window, initial, theme=theme, motion=motion)
+    # 背の高い設定でも画面に収まるよう、フォームはスクロール領域に入れる。
+    # 画面高の7割を上限にし、それを超えた分だけスクロールへ回す。
+    max_height = int(window.winfo_screenheight() * 0.7)
+    scroll = ScrollableFrame(window, max_height=max_height)
+    scroll.pack(fill="both", expand=True)
+    form = Form(scroll.interior, initial, theme=theme, motion=motion)
     form.pack(fill="both", expand=True)
+    if form.palette is not None:
+        scroll.configure_background(form.palette)
 
     result: list[T | None] = [None]
 
@@ -57,9 +65,14 @@ def edit[T](
         try:
             value = form.get()
         except FormValidationError:
+            form.focus_invalid()
             return
-        if store is not None:
-            save(value, store)
+        try:
+            if store is not None:
+                save(value, store)
+        except PersistenceError as error:
+            messagebox.showerror("保存できません", str(error), parent=window)
+            return
         result[0] = value
         close()
 
