@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import datetime
 import tkinter as tk
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from tkinter import filedialog, ttk
 from typing import Any, Literal
 
@@ -75,6 +76,17 @@ class Form(ttk.Frame):
         self._root.clear_errors()
         self.notify()
 
+    def focus_invalid(self) -> _FieldWidget | None:
+        """最初の不正フィールドへフォーカスを移し、その欄を返す。無ければNone。
+
+        検証に失敗したあと呼ぶと、利用者は直すべき欄へすぐ移動できる。
+        """
+        for field in self._root.iter_fields():
+            if field.has_error:
+                field.focus()
+                return field
+        return None
+
     def notify(self) -> None:
         if not self._suspend_notify and self._on_change is not None:
             self._on_change()
@@ -90,6 +102,7 @@ class _FieldWidget:
         # 不正表示の対象。ttk入力はスタイル差し替え、tk.Text/Listboxは枠色で示す。
         self.invalid_target: tk.Widget | None = None
         self.invalid_style: str | None = None
+        self.has_error = False
         gap = theme_mod.SPACE_SM
         label = ttk.Label(parent, text=spec.label, style="Field.TLabel")
         label.grid(row=row, column=0, sticky="nw", padx=(0, theme_mod.SPACE_MD), pady=(gap, 0))
@@ -115,12 +128,19 @@ class _FieldWidget:
         raise NotImplementedError
 
     def show_error(self, message: str | None) -> None:
+        self.has_error = message is not None
         if message is None:
             self.error_label.grid_remove()
         else:
             self.error_label.configure(text=message)
             self.error_label.grid()
         self._mark_invalid(message is not None)
+
+    def focus(self) -> None:
+        """この入力欄へキーボードフォーカスを移す。"""
+        target = self.invalid_target or self.control
+        with contextlib.suppress(tk.TclError):
+            target.focus_set()
 
     def _mark_invalid(self, invalid: bool) -> None:
         """入力欄に不正状態の見た目を着せる/外す。テーマ未適用なら何もしない。"""
@@ -406,3 +426,11 @@ class _GroupWidget:
                 child.clear_errors()
             else:
                 child.show_error(None)
+
+    def iter_fields(self) -> Iterator[_FieldWidget]:
+        """配置順(ネストも展開)に末端フィールドを返す。"""
+        for child in self.children.values():
+            if isinstance(child, _GroupWidget):
+                yield from child.iter_fields()
+            else:
+                yield child
