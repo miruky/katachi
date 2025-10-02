@@ -207,3 +207,44 @@ def test_empty_dataclass_renders_and_validates(root: tk.Tk):
     form = Form(root, Empty, theme="light")
     assert form.get() == Empty()
     assert form.focus_invalid() is None
+
+
+def test_is_valid_is_non_destructive(root: tk.Tk):
+    form = Form(root, Settings, theme="light")
+    workers = form._root.children["workers"]
+    workers.set_value("999")
+    assert form.is_valid() is False
+    # 非破壊: 確認しただけではエラー表示も不正スタイルも出さない。
+    assert workers.has_error is False
+    assert "Invalid" not in workers.control.cget("style")
+    workers.set_value("8")
+    assert form.is_valid() is True
+
+
+def test_str_list_delete_key_removes_selection(root: tk.Tk):
+    form = Form(root, Settings, theme="light")
+    tags = form._root.children["tags"]
+    tags.set_value(["a", "b", "c"])
+    # macOSの主要な削除キーは<BackSpace>、それ以外は<Delete>を送る。両方拾う。
+    assert tags.listbox.bind("<Delete>")
+    assert tags.listbox.bind("<BackSpace>")
+    tags.listbox.selection_set(1)
+    assert tags._on_delete_key(None) == "break"  # 既定操作を止める
+    assert tags.raw() == ["a", "c"]
+
+
+def test_date_range_rejects_out_of_bounds(root: tk.Tk):
+    @dataclass
+    class Booking:
+        day: Annotated[
+            datetime.date, Range(datetime.date(2026, 1, 1), datetime.date(2026, 12, 31))
+        ] = datetime.date(2026, 6, 1)
+
+    form = Form(root, Booking, theme=None)
+    form._root.children["day"].set_value("2027-03-01")
+    with pytest.raises(FormValidationError) as excinfo:
+        form.get()
+    assert any(e.path == "day" for e in excinfo.value.errors)
+    # 範囲内に直せば通る。
+    form._root.children["day"].set_value("2026-03-01")
+    assert form.get() == Booking(day=datetime.date(2026, 3, 1))
