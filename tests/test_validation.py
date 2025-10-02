@@ -75,3 +75,27 @@ def test_str_list_drops_blank_entries():
     assert coerce_field(spec_of("tags"), ["a", " ", "b"]) == ["a", "b"]
     with pytest.raises(ValueError, match="リスト"):
         coerce_field(spec_of("tags"), "not-a-list")
+
+
+def _date_spec():
+    import datetime
+
+    @dataclass
+    class WithDate:
+        start: datetime.date = datetime.date(2026, 1, 1)
+
+    return next(s for s in introspect(WithDate).children if s.name == "start")
+
+
+def test_coerce_date_parses_iso():
+    import datetime
+
+    assert coerce_field(_date_spec(), "2030-12-31") == datetime.date(2030, 12, 31)
+
+
+def test_coerce_date_rejects_bad_format():
+    with pytest.raises(ValueError, match="YYYY-MM-DD"):
+        coerce_field(_date_spec(), "2030/12/31")
+
+    with pytest.raises(ValueError, match="日付"):
+        coerce_field(_date_spec(), "   ")
