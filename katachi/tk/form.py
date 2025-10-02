@@ -389,6 +389,11 @@ class _GroupWidget:
         self.container = container
         container.columnconfigure(1, weight=1)
         row = 0
+        # グループ(ネストしたdataclass)の Help は枠の先頭に説明として置く。
+        if not is_root and spec.help:
+            intro = ttk.Label(container, text=spec.help, style="Help.TLabel")
+            intro.grid(row=row, column=0, columnspan=2, sticky="w", pady=(0, theme_mod.SPACE_SM))
+            row += 1
         for child in spec.children:
             if child.kind == "group":
                 group = _GroupWidget(form, child, container)
