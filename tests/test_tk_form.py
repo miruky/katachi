@@ -181,3 +181,29 @@ def test_secret_reveal_toggle(root: tk.Tk):
     assert widget.entry.cget("show") == ""
     widget._toggle_reveal()
     assert widget.entry.cget("show") == "*"
+
+
+def test_focus_invalid_targets_first_error_in_order(root: tk.Tk):
+    form = Form(root, Settings, theme="light")
+    form._root.children["workers"].set_value("999")
+    form._root.children["network"].children["port"].set_value("0")
+    with pytest.raises(FormValidationError):
+        form.get()
+    # 配置順で先に来るworkersが選ばれる(network.portより前)。
+    assert form.focus_invalid() is form._root.children["workers"]
+
+
+def test_focus_invalid_returns_none_when_valid(root: tk.Tk):
+    form = Form(root, Settings, theme="light")
+    form.get()
+    assert form.focus_invalid() is None
+
+
+def test_empty_dataclass_renders_and_validates(root: tk.Tk):
+    @dataclass
+    class Empty:
+        pass
+
+    form = Form(root, Empty, theme="light")
+    assert form.get() == Empty()
+    assert form.focus_invalid() is None
