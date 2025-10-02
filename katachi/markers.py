@@ -7,15 +7,19 @@ typing.Annotatedを通じてフィールドに意味づけを与える。
 
 from __future__ import annotations
 
+import datetime
 from dataclasses import dataclass
 
 
 @dataclass(frozen=True, slots=True)
 class Range:
-    """数値の下限・上限。stepはスピンボックスの増分になる。"""
+    """下限・上限。数値フィールドと`datetime.date`フィールドの両方に使える。
 
-    min: float
-    max: float
+    stepはスピンボックスの増分(数値のみ)。日付では両端をdatetimeで与える。
+    """
+
+    min: float | datetime.date
+    max: float | datetime.date
     step: float | None = None
 
 
