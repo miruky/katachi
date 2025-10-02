@@ -102,3 +102,27 @@ def test_float_accepts_int_json():
 def test_to_jsonable_rejects_non_dataclass():
     with pytest.raises(PersistenceError):
         to_jsonable({"plain": "dict"})
+
+
+def test_date_round_trip():
+    import datetime
+
+    @dataclass
+    class WithDate:
+        start: datetime.date = datetime.date(2026, 1, 1)
+        name: str = "x"
+
+    original = WithDate(start=datetime.date(2030, 12, 31))
+    assert to_jsonable(original)["start"] == "2030-12-31"
+    assert build(WithDate, to_jsonable(original)) == original
+
+
+def test_bad_date_string_raises():
+    import datetime
+
+    @dataclass
+    class WithDate:
+        start: datetime.date = datetime.date(2026, 1, 1)
+
+    with pytest.raises(PersistenceError):
+        build(WithDate, {"start": "2030/12/31"})
