@@ -62,6 +62,12 @@ class Form(ttk.Frame):
             raise FormValidationError(errors)
         return value
 
+    def is_valid(self) -> bool:
+        """現在の入力がすべて妥当かを返す。エラー表示は変えない(非破壊の確認)。"""
+        errors: list[FieldError] = []
+        self._root.value("", errors, show=False)
+        return not errors
+
     def set(self, instance: Any) -> None:
         """インスタンスの値をフォームに反映する。"""
         self._suspend_notify = True
@@ -310,6 +316,10 @@ class _StrListWidget(_FieldWidget):
         if self.form.palette is not None:
             theme_mod.style_text(self.listbox, self.form.palette)
         self.invalid_target = self.listbox  # tk.Listboxは枠色で不正を示す
+        # キーボードだけで削除できるようにする。macOSの主要な削除キーは
+        # <BackSpace>、それ以外は<Delete>を送るので両方を拾う。
+        self.listbox.bind("<Delete>", self._on_delete_key)
+        self.listbox.bind("<BackSpace>", self._on_delete_key)
         self.listbox.grid(row=0, column=0, columnspan=3, sticky="ew")
         self.entry_var = tk.StringVar(parent)
         entry = ttk.Entry(frame, textvariable=self.entry_var)
@@ -333,6 +343,10 @@ class _StrListWidget(_FieldWidget):
         for index in reversed(self.listbox.curselection()):
             self.listbox.delete(index)
         self.form.notify()
+
+    def _on_delete_key(self, _event: tk.Event) -> str:
+        self._remove()
+        return "break"  # リストの既定キー操作にフォールスルーさせない
 
     def raw(self) -> list[str]:
         return list(self.listbox.get(0, "end"))
@@ -391,19 +405,21 @@ class _GroupWidget:
     def grid(self, **kwargs: Any) -> None:
         self.container.grid(**kwargs)
 
-    def value(self, prefix: str, errors: list[FieldError]) -> Any:
+    def value(self, prefix: str, errors: list[FieldError], *, show: bool = True) -> Any:
         assert self.spec.group_type is not None
         kwargs: dict[str, Any] = {}
         for name, child in self.children.items():
             path = f"{prefix}{name}"
             if isinstance(child, _GroupWidget):
-                kwargs[name] = child.value(f"{path}.", errors)
+                kwargs[name] = child.value(f"{path}.", errors, show=show)
                 continue
             try:
                 kwargs[name] = coerce_field(child.spec, child.raw())
-                child.show_error(None)
+                if show:
+                    child.show_error(None)
             except ValueError as error:
-                child.show_error(str(error))
+                if show:
+                    child.show_error(str(error))
                 errors.append(FieldError(path=path, label=child.spec.label, message=str(error)))
         if errors:
             return None
