@@ -19,6 +19,31 @@ from katachi.tk.theme import (  # noqa: E402
 )
 
 
+def _contrast(fg: str, bg: str) -> float:
+    def channel(value: int) -> float:
+        c = value / 255
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+
+    def luminance(hexcolor: str) -> float:
+        h = hexcolor.lstrip("#")
+        r, g, b = (int(h[i : i + 2], 16) for i in (0, 2, 4))
+        return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
+
+    high, low = sorted((luminance(fg), luminance(bg)), reverse=True)
+    return (high + 0.05) / (low + 0.05)
+
+
+@pytest.mark.parametrize("palette", [LIGHT, DARK])
+def test_palette_meets_wcag_aa(palette):
+    # 本文・補足・エラー・ボタン文字は本文基準(4.5:1)以上を保つ。
+    assert _contrast(palette.text, palette.bg) >= 4.5
+    assert _contrast(palette.muted, palette.bg) >= 4.5
+    assert _contrast(palette.error, palette.bg) >= 4.5
+    assert _contrast(palette.accent_text, palette.accent) >= 4.5
+    # アクセントの枠・フォーカスはUI部品基準(3:1)以上。
+    assert _contrast(palette.accent, palette.bg) >= 3.0
+
+
 def test_palette_for_selects_mode():
     assert palette_for("light") is LIGHT
     assert palette_for("dark") is DARK
