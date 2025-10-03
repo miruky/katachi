@@ -111,6 +111,13 @@ def test_form_theme_none_leaves_palette_unset(root: tk.Tk):
     assert form.get() == Settings()
 
 
+def test_form_accepts_custom_accent(root: tk.Tk):
+    form = Form(root, Settings, theme="light", accent="#7c3aed")
+    assert form.palette is not None
+    assert form.palette.accent == "#7c3aed"
+    assert form.get() == Settings()
+
+
 def test_required_field_dataclass_raises_schema_error(root: tk.Tk):
     @dataclass
     class NeedsArg:
