@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import contextlib
 import tkinter as tk
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from tkinter import font as tkfont
 from tkinter import ttk
 from typing import Literal
@@ -81,6 +81,55 @@ def palette_for(mode: Mode) -> Palette:
     return DARK if mode == "dark" else LIGHT
 
 
+def _parse_hex(color: str) -> tuple[int, int, int]:
+    """`#rrggbb` か `#rgb` をRGBに分解する。それ以外は ValueError。"""
+    digits = color.lstrip("#")
+    if len(digits) == 3:
+        digits = "".join(channel * 2 for channel in digits)
+    if len(digits) != 6:
+        raise ValueError(f"色は #rrggbb か #rgb 形式で指定してください: {color!r}")
+    try:
+        return tuple(int(digits[i : i + 2], 16) for i in (0, 2, 4))  # type: ignore[return-value]
+    except ValueError:
+        raise ValueError(f"色として解釈できません: {color!r}") from None
+
+
+def normalize_hex(color: str) -> str:
+    """色指定を `#rrggbb`(小文字)に正規化する。不正な指定は ValueError。"""
+    return "#{:02x}{:02x}{:02x}".format(*_parse_hex(color))
+
+
+def _relative_luminance(rgb: tuple[int, int, int]) -> float:
+    def channel(value: int) -> float:
+        c = value / 255
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+
+    r, g, b = rgb
+    return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
+
+
+def _contrast(a: str, b: str) -> float:
+    high, low = sorted(
+        (_relative_luminance(_parse_hex(a)), _relative_luminance(_parse_hex(b))), reverse=True
+    )
+    return (high + 0.05) / (low + 0.05)
+
+
+def readable_text_on(color: str) -> str:
+    """その色の上に置く文字色として、白か濃墨のうちコントラストの高い方を返す。"""
+    return "#ffffff" if _contrast("#ffffff", color) >= _contrast("#11161d", color) else "#11161d"
+
+
+def palette_with_accent(palette: Palette, accent: str) -> Palette:
+    """既存パレットのアクセント(と連動するフォーカス・前景)だけを差し替える。
+
+    アクセント文字色はコントラストの高い方を自動で選ぶので、任意の色を渡しても
+    ボタン文字が読めなくなることはない。地色・罫線・選択色はパレットのまま残す。
+    """
+    hexed = normalize_hex(accent)
+    return replace(palette, accent=hexed, focus=hexed, accent_text=readable_text_on(hexed))
+
+
 def detect_mode() -> Mode:
     """OSのダークモード設定を推定する。判定できなければ light。"""
     import platform
@@ -129,14 +178,17 @@ def current_mode(widget: tk.Misc) -> Mode | None:
     return getattr(widget.winfo_toplevel(), _MODE_ATTR, None)
 
 
-def apply_theme(widget: tk.Misc, mode: Mode | None = None) -> Palette:
+def apply_theme(widget: tk.Misc, mode: Mode | None = None, *, accent: str | None = None) -> Palette:
     """ウィジェットの属するウィンドウへテーマを適用し、使ったパレットを返す。
 
-    mode を省略すると OS 設定から推定する。何度呼んでも安全(冪等)。
+    mode を省略すると OS 設定から推定する。accent に色(`#rrggbb` か `#rgb`)を
+    渡すと組み込みのアクセント色を差し替える。何度呼んでも安全(冪等)。
     """
     root = widget.winfo_toplevel()
     resolved: Mode = mode or detect_mode()
     palette = palette_for(resolved)
+    if accent is not None:
+        palette = palette_with_accent(palette, accent)
     style = ttk.Style(root)
     with contextlib.suppress(tk.TclError):
         style.theme_use("clam")

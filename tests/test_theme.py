@@ -15,7 +15,10 @@ from katachi.tk.theme import (  # noqa: E402
     apply_theme,
     current_palette,
     detect_mode,
+    normalize_hex,
     palette_for,
+    palette_with_accent,
+    readable_text_on,
 )
 
 
@@ -72,6 +75,34 @@ def test_detect_mode_falls_back_to_light_on_error(monkeypatch):
     assert detect_mode() == "light"
 
 
+def test_normalize_hex_accepts_long_and_short():
+    assert normalize_hex("#16A34A") == "#16a34a"
+    assert normalize_hex("0a0") == "#00aa00"
+
+
+@pytest.mark.parametrize("bad", ["green", "#12", "#1234", "#gggggg"])
+def test_normalize_hex_rejects_bad_input(bad):
+    with pytest.raises(ValueError):
+        normalize_hex(bad)
+
+
+def test_readable_text_on_picks_contrasting_ink():
+    assert readable_text_on("#ffffff") == "#11161d"  # 明るい色には濃墨
+    assert readable_text_on("#000000") == "#ffffff"  # 暗い色には白
+
+
+@pytest.mark.parametrize("accent", ["#16a34a", "#7c3aed", "#f59e0b", "#0ea5e9"])
+def test_palette_with_accent_keeps_readable_button_text(accent):
+    derived = palette_with_accent(LIGHT, accent)
+    assert derived.accent == accent
+    assert derived.focus == accent
+    # 任意のアクセントでもボタン文字はWCAG AA(4.5:1)を保つ。
+    assert _contrast(derived.accent_text, derived.accent) >= 4.5
+    # 地色・罫線はパレットのまま残す。
+    assert derived.bg == LIGHT.bg
+    assert derived.border == LIGHT.border
+
+
 @pytest.fixture
 def root():
     try:
@@ -107,3 +138,16 @@ def test_style_text_applies_palette_colors(root: tk.Tk):
     theme.style_text(text, palette)
     assert text.cget("background") == palette.field
     assert text.cget("foreground") == palette.text
+
+
+def test_apply_theme_without_accent_keeps_canonical_palette(root: tk.Tk):
+    # accent を渡さなければ組み込みパレットの同一オブジェクトを返す。
+    assert apply_theme(root, "dark") is DARK
+
+
+def test_apply_theme_custom_accent_overrides(root: tk.Tk):
+    palette = apply_theme(root, "light", accent="#16a34a")
+    assert palette.accent == "#16a34a"
+    assert palette.focus == "#16a34a"
+    assert current_palette(root) is palette
+    assert palette is not LIGHT
