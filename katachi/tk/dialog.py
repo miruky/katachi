@@ -21,6 +21,7 @@ def edit[T](
     title: str | None = None,
     parent: tk.Misc | None = None,
     theme: ThemeOption = "auto",
+    accent: str | None = None,
     motion: bool | None = None,
 ) -> T | None:
     """設定ダイアログを開く。保存で確定したインスタンス、キャンセルでNoneを返す。
@@ -28,6 +29,7 @@ def edit[T](
     storeを渡すと初期値をそのファイルから読み、保存時に書き戻す。
     壊れたファイルはデフォルト値として扱い、起動を妨げない。
     themeは "auto"(OS追従・既定)/"light"/"dark"/None(スタイルに触れない)。
+    accentに色(`#rrggbb`)を渡すと組み込みのアクセント色を差し替える。
     motionは None で reduced-motion 設定に追従、True/False で明示指定。
     """
     cls: type[T] = model if isinstance(model, type) else type(model)
@@ -51,7 +53,7 @@ def edit[T](
     max_height = int(window.winfo_screenheight() * 0.7)
     scroll = ScrollableFrame(window, max_height=max_height)
     scroll.pack(fill="both", expand=True)
-    form = Form(scroll.interior, initial, theme=theme, motion=motion)
+    form = Form(scroll.interior, initial, theme=theme, accent=accent, motion=motion)
     form.pack(fill="both", expand=True)
     if form.palette is not None:
         scroll.configure_background(form.palette)
