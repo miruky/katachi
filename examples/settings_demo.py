@@ -42,8 +42,8 @@ class AppSettings:
     ] = datetime.date(2027, 3, 31)
     exclude: Annotated[list[str], Label("除外パターン")] = field(default_factory=list)
     note: Annotated[str, Multiline(height=4), Label("メモ")] = ""
-    network: Annotated[NetworkSettings, Label("ネットワーク")] = field(
-        default_factory=NetworkSettings
+    network: Annotated[NetworkSettings, Label("ネットワーク"), Help("APIサーバーへの接続設定")] = (
+        field(default_factory=NetworkSettings)
     )
 
 
@@ -52,6 +52,7 @@ def main() -> None:
         AppSettings,
         store="~/.config/katachi-demo/settings.json",
         title="設定 - katachiデモ",
+        accent="#16a34a",
     )
     if result is None:
         print("キャンセルされた")
