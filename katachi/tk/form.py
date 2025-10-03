@@ -24,6 +24,7 @@ class Form(ttk.Frame):
 
     getで現在の入力を検証つきで取り出し、setでインスタンスを流し込む。
     themeは "auto"(OS追従・既定)/"light"/"dark"/None(スタイルに触れない)。
+    accentに色(`#rrggbb`)を渡すと組み込みのアクセント色を差し替える。
     motionは None で reduced-motion 設定に追従、True/False で明示指定。
     """
 
@@ -34,6 +35,7 @@ class Form(ttk.Frame):
         *,
         on_change: Callable[[], None] | None = None,
         theme: ThemeOption = "auto",
+        accent: str | None = None,
         motion: bool | None = None,
     ) -> None:
         super().__init__(master, padding=theme_mod.SPACE_LG)
@@ -45,7 +47,7 @@ class Form(ttk.Frame):
         initial = model() if isinstance(model, type) else model
         if theme is not None:
             mode = None if theme == "auto" else theme
-            theme_mod.apply_theme(self, mode)
+            theme_mod.apply_theme(self, mode, accent=accent)
         self.palette = theme_mod.current_palette(self)
         self.motion = (not motion_mod.prefers_reduced_motion()) if motion is None else motion
         self._on_change = on_change
