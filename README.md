@@ -69,12 +69,13 @@ katachi.edit(
     Settings,
     store="~/.config/myapp/settings.json",
     title="設定",
-    theme="auto",   # "auto"(OS追従・既定) / "light" / "dark" / None(既存スタイルに触れない)
-    motion=None,    # None で reduced-motion 設定に追従、True/False で明示
+    theme="auto",       # "auto"(OS追従・既定) / "light" / "dark" / None(既存スタイルに触れない)
+    accent="#16a34a",   # アクセント色の差し替え(#rrggbb / #rgb)。省略で組み込みの青
+    motion=None,        # None で reduced-motion 設定に追従、True/False で明示
 )
 ```
 
-ダイアログは8pxグリッドの余白と明確なタイポ階層で組まれ、WCAG AAのコントラストをライト・ダーク両方で満たします。入場と退場はフェードし、不正な入力は枠が赤くなって直すべき欄が分かります。これらの動きは`prefers-reduced-motion`(macOSの「視差効果を減らす」など)や環境変数`KATACHI_REDUCE_MOTION=1`で止まります。
+ダイアログは8pxグリッドの余白と明確なタイポ階層で組まれ、WCAG AAのコントラストをライト・ダーク両方で満たします。`accent`を渡すとボタンやフォーカスの色をブランドカラーに合わせられ、その上に載るボタン文字は白か濃墨のうちコントラストの高い方が自動で選ばれます。入場と退場はフェードし、不正な入力は枠が赤くなって直すべき欄が分かります。これらの動きは`prefers-reduced-motion`(macOSの「視差効果を減らす」など)や環境変数`KATACHI_REDUCE_MOTION=1`で止まります。
 
 操作面では、`Ctrl`+`S`(macOSは`Cmd`+`S`)で保存、`Esc`でキャンセル、「デフォルトに戻す」で初期値へ復帰します。保存時に検証へ引っかかると、最初の不正フィールドへ自動でフォーカスが移ります。伏せ字フィールドには表示/非表示の切り替えが付きます。
 
@@ -186,7 +187,7 @@ make lint
 
 ## 制約
 
-`Optional`型、`dict`、ネストしたリスト、`datetime`(時刻つき)には現バージョンでは対応していません(日付のみの`datetime.date`は対応)。配色はライト・ダークの組み込みパレットに従い、任意配色のテーマ差し替えは今後の課題です。
+`Optional`型、`dict`、ネストしたリスト、`datetime`(時刻つき)には現バージョンでは対応していません(日付のみの`datetime.date`は対応)。配色はライト・ダークの組み込みパレットを土台にし、`accent`でアクセント色だけ差し替えられます。地色・罫線まで含めたパレット全体の差し替えは今後の課題です。
 
 ## ライセンス
 
